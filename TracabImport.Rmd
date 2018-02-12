@@ -1,0 +1,72 @@
+---
+title: "Untitled"
+output: github_document
+---
+
+# Importing Tracab Tracking Data into R
+
+Firstly, chose a match you want to import and put the .dat file into the working directory of R. Let's read it to a dataframe. 
+
+```{r}
+# change below to the name of the tracking data file
+match <- "TrackingDataForAMatch.dat"
+# use the read.table function to easily import the data 
+dat <- read.table(tc)
+```
+
+The data is now read into R, but... it is not organised and spilt into a useable structure. We want to have a new row of data for every player for each frame (25 times a second). Let's setup a dataframe to store this information in. 
+
+```{r}
+seg <- data.frame  (team_HA=character(),
+                   TrackID=character(),
+                   JerseyNo=character(),
+                   x=character(),
+                   y=character(),
+                   Speed=character(),
+                   stringsAsFactors=FALSE)
+```
+
+In the dat object we currently have one row for every frame, in that row there is one massive string which contains the positional data of each player for that frame. We want to iterate through the dataset and break each row up. 
+
+```{r}
+for (i in dat$V1[1:nrow(dat)]){
+frame <- unlist(strsplit(i, ":"))[1]
+x2 <- unlist(strsplit(i, ":"))[2] 
+x3 <- unlist(strsplit(x2,";"))
+tempX <- data.frame(matrix(unlist(strsplit(x3,",")), nrow=29, byrow=T))
+tempX$frame <- frame
+colnames(tempX) <- c("team_HA", "TrackID", "JerseyNo", "x","y","Speed","frame")
+
+x4 <- unlist(strsplit(i, ":"))[3]
+tempX2 <- data.frame(matrix(unlist(strsplit(x4,",")), nrow=1, byrow=T))
+
+## create the referee data 
+team_HA = "10"
+TrackID = "30"
+JerseyNo = NA
+x = tempX2$X1
+y = tempX2$X2
+Speed = tempX2$X3
+
+# create the ball data 
+ballTemp <- data.frame(team_HA,TrackID,JerseyNo,x,y,Speed)
+ballTemp$frame <- frame
+catch <- rbind(tempX,ballTemp)
+catch <- rbind(catch[which(catch$team_HA==1),] , (catch[which(catch$team_HA==0),]), (catch[which(catch$team_HA==10),]))
+
+# join the row data to the overall seg dataframe
+seg <- rbind(seg,catch)
+cat(".")
+}
+```
+There is still some cleaning up of the data to do 
+
+```{r}
+# clean up the seg data frame 
+seg$TrackID[is.na(seg$TrackID)] <- "50" # set the ball trackID
+seg$x <- as.numeric(as.character(seg$x)) # convert from a string to a numeric
+seg$y <- as.numeric(as.character(seg$y)) # convert from a string to a numeric
+seg$frame <- as.numeric(as.character(seg$frame)) # convert from a string to a numeric
+```
+
+Now we have the tracking data in a structure that is more flexible and ready to utilise in many ways. 
